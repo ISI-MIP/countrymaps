@@ -2,6 +2,9 @@
 
 This is work-in-progress code. Contact me before use.
 
+![World map](dummy/world.png?raw=true "World map")
+
+
 Aims
 ----
 - reference data for country masks as shapefile and raster, for all isimip / isipedia country-aggregation needs.
