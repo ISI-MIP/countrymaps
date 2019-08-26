@@ -33,6 +33,11 @@ Note the original vector data is pretty old (i.e. do not account for political c
 We are currently in the process of updating these files.
 
 
+Country plots:
+--------------
+See the [notebook](https://nbviewer.jupyter.org/urls/media.githubusercontent.com/media/ISI-MIP/countrymaps/master/maps.ipynb)
+
+
 Note git-lfs
 ------------
 I use git-lfs for jupyter notebooks, figures etc... make sure it is installed on your computer if you use git as command line and need access to these files.
