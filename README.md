@@ -3,13 +3,15 @@
 This is work-in-progress code. Contact me before use.
 ![World map](dummy/world.png?raw=true "World map")
 
-![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
-![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
-![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
 
 Country masks
 -------------
 See [issue #1](https://github.com/ISI-MIP/countrymaps/issues/1) for a discussion about country masks.  
+
+![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
+![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
+![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
+
 
 Other aims
 ----------
