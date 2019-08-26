@@ -4,9 +4,9 @@ This is work-in-progress code. Contact me before use.
 ![World map](dummy/world.png?raw=true "World map")
 
 Current SVG image of some countries (Afghanistan, France, Sudan):
-![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
-![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
-![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
+- ![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
+- ![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
+- ![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
 
 Aims
 ----
