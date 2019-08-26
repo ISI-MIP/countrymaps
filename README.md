@@ -10,10 +10,13 @@ Aims
 - more ?
 
 
-Content
--------
-Work in progress code with jupyter notebook, that will hopefully converge towards production code.
-At this stage better to ask before use.
+Country masks
+-------------
+Currently we use:
+- vector file: TM_WORLD_BORDERS_SIMPL-0.3 (in zip and unzipped versions)
+- raster file: CountryMask.NtoS.plusATA.nc
+Note the original vector data is pretty old (i.e. do not account for political changes in the last years) and has crude resolution (few details that do not make nice SVG files)
+We are currently in the process of updating these files.
 
 
 Note git-lfs
