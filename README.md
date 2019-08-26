@@ -4,9 +4,17 @@ This is work-in-progress code. Contact me before use.
 ![World map](dummy/world.png?raw=true "World map")
 
 Current SVG image of some countries (Afghanistan, France, Sudan):
-- ![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
-- ![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
-- ![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
+
+![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/AFG/country.svg)
+![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/FRA/country.svg)
+![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data/SDN/country.svg)
+
+For comparison, Natural Earth mask at 1:50m resolution. Note South Sudan got removed. Click on files to see details.
+
+![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data_ne/AFG/country.svg)
+![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data_ne/FRA/country.svg)
+![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/countries_data_ne/SDN/country.svg)
+
 
 Aims
 ----
