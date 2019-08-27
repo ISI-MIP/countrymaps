@@ -1,6 +1,7 @@
 import numpy as np
 from skimage.measure import find_contours
 import rasterio
+import rasterio.mask
 import shapely.ops
 from shapely.geometry import LineString, Point, MultiPoint, Polygon, MultiLineString, GeometryCollection, LinearRing, MultiPolygon
 from icedata.tools import coords_to_gdal_transform
