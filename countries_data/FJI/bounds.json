@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:002f4257a567a2b6cd5492c3c6fda28bb58eaea5adae4e382127e2cf51a8ffc3
-size 155
+{"code": "FJI", "bounds": {"left": -180.5, "right": 180.5, "bottom": -20.0, "top": -15.5}, "indices": {"left": 0, "right": 719, "bottom": 219, "top": 211}}

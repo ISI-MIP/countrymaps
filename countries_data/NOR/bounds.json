@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:33a586183d23320d895c179e082ef5f5f7a58b72b689893ee826d5945531cf07
-size 152
+{"code": "NOR", "bounds": {"left": -9.5, "right": 34.0, "bottom": 57.5, "top": 81.0}, "indices": {"left": 341, "right": 427, "bottom": 64, "top": 18}}

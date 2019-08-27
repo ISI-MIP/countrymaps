@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b964b949f21a975b137bec76d12d7681b5815a79f4752ff546765c86bb5dc886
-size 152
+{"code": "ESP", "bounds": {"left": -19.0, "right": 5.0, "bottom": 27.0, "top": 44.5}, "indices": {"left": 322, "right": 369, "bottom": 125, "top": 91}}

@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:08249a76481b8a006b09d4be24cd77785e592a409992415e93686e4100b5f31f
-size 155
+{"code": "ARG", "bounds": {"left": -74.0, "right": -53.0, "bottom": -56.0, "top": -21.5}, "indices": {"left": 212, "right": 253, "bottom": 291, "top": 223}}

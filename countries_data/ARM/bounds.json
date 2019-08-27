@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:db235c3aad46638497cb2e46608579e8a7c045346a8742ffd20ce5e72c7979c1
-size 152
+{"code": "ARM", "bounds": {"left": 43.0, "right": 47.0, "bottom": 38.5, "top": 41.5}, "indices": {"left": 446, "right": 453, "bottom": 102, "top": 97}}

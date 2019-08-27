@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:a94de04daef74b9b848749acdefab428933eeaa2a3be79fe945ab44befeece38
-size 152
+{"code": "GEO", "bounds": {"left": 40.0, "right": 47.0, "bottom": 40.5, "top": 44.0}, "indices": {"left": 440, "right": 453, "bottom": 98, "top": 92}}

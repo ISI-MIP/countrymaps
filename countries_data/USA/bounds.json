@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:398b28e3932c09b6732bb1a7b2f0a8202d385095c728941f4490d63ad69c3ee2
-size 153
+{"code": "USA", "bounds": {"left": -178.5, "right": 180.5, "bottom": 18.0, "top": 72.0}, "indices": {"left": 3, "right": 719, "bottom": 143, "top": 36}}

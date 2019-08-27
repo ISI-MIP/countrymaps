@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6916de9e0ce916f11a196fb7540bde14916bd3e395d0c0937de953355cc04847
-size 152
+{"code": "QAT", "bounds": {"left": 50.0, "right": 52.5, "bottom": 24.0, "top": 27.0}, "indices": {"left": 460, "right": 464, "bottom": 131, "top": 126}}

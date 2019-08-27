@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:35474849a8dadf4028d48635ebb909c5a6826fbe856fcab1de823705a3ee7c84
-size 152
+{"code": "FRA", "bounds": {"left": -5.5, "right": 10.5, "bottom": 40.5, "top": 52.0}, "indices": {"left": 349, "right": 380, "bottom": 98, "top": 76}}

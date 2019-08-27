@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:81a3e5b44685edbb6ca5681587dc32862502ea998a0c882010e846e3cac8ed29
-size 153
+{"code": "SLE", "bounds": {"left": -14.0, "right": -10.0, "bottom": 6.0, "top": 10.5}, "indices": {"left": 332, "right": 339, "bottom": 167, "top": 159}}

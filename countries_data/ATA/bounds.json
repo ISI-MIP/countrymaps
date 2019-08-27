@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:22dcb3820cdd66d4111589295dfbfb2138ad5a53d2fdb15601e6454b246fc275
-size 152
+{"code": "ATA", "bounds": {"left": -180.5, "right": 180.5, "bottom": -90.5, "top": -60.0}, "indices": {"left": 0, "right": 719, "bottom": 359, "top": 300}}
