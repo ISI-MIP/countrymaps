@@ -11,4 +11,5 @@
 *.html
 *.shp
 *.shx
+*.pdf
 TM_WORLD_BORDERS_SIMPL-0.3/* filter=lfs diff=lfs merge=lfs -text
