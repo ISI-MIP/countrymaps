@@ -1,1 +1,1 @@
-{"code": "QAT", "bounds": {"left": 50.0, "right": 52.5, "bottom": 24.0, "top": 27.0}, "indices": {"left": 460, "right": 464, "bottom": 131, "top": 126}}
+{"code": "QAT", "bounds": {"left": 50.0, "right": 52.5, "bottom": 24.0, "top": 27.0}, "indices": {"left": 460, "right": 464, "bottom": 131, "top": 126}, "splitted": false}
