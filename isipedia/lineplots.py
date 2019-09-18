@@ -133,10 +133,11 @@ class Area:
 
 class JsonData:
     
-    def __init__(self, variable, area, cube):
+    def __init__(self, variable, area, cube, cube_std=None):
         self.variable = variable
         self.area = area
         self.cube = cube
+        self.cube_std = cube_std
         self.name = variable.ncvariable.replace('_',' ')
         self.metadata = {}
 
@@ -181,7 +182,9 @@ class JsonData:
 
 
     @staticmethod
-    def _data_time(cube, variable):       
+    def _data_time(cube, variable, cube_std=None):       
+        if cube_std is None:
+            cube_std = da.zeros_like(cube)
 
         js = {}            
         for k, scenario in enumerate(variable.climate_scenario_list):
@@ -194,19 +197,25 @@ class JsonData:
                 }
                 
                 for j, impact in enumerate(variable.impact_model_list):
-                    #impact = impact.replace('multi-model-median','median')
+                    mean = cube.loc[(slice(None), scenario, gcm0, impact)].values
+                    std = cube_std.loc[(slice(None), scenario, gcm0, impact)].values
                     js[scenario][gcm]['runs'][impact] = {
-                        'mean': [cube.loc[(year, scenario, gcm0, impact)].tolist() for year in variable.years]
-                        #'shading_upper_border': [self.aggregate(map_) for map_ in upper[self.upper.ncvariable][:, :, :, j, i]],
-                        #'shading_lower_border': [self.aggregate(map_) for map_ in lower[self.lower.ncvariable][:, :, :, j, i]],
+                        'mean': mean.tolist(), 
+                        'shading_upper_border': (mean+std).tolist(), 
+                        'shading_lower_border': (mean-std).tolist(), 
                     }
-                js[scenario][gcm].update(js[scenario][gcm]['runs'].pop('multi-model-median'))
+
+                median = js[scenario][gcm]['runs'].pop('multi-model-median')
+                median['median'] = median.pop('mean')                    
+                js[scenario][gcm].update(median)
                         
         return js
 
 
     @staticmethod
-    def _data_temperature(cube, variable):
+    def _data_temperature(cube, variable, cube_std=None):       
+        if cube_std is None:
+            cube_std = da.zeros_like(cube)
         js = {}
         for i, gcm0 in enumerate(variable.climate_model_list):
             gcm = gcm0.replace('multi-model-median','overall')
@@ -214,27 +223,32 @@ class JsonData:
                 'runs': {},
             }
             for j, impact in enumerate(variable.impact_model_list):
+                mean = cube.loc[(slice(None), gcm0, impact)].values
+                std = cube_std.loc[(slice(None), gcm0, impact)].values                
                 js[gcm]['runs'][impact] = {
-                    'median': [cube.loc[(temp, gcm0, impact)].tolist() for temp in variable.temperature_list]
-                    #'shading_upper_border': [self.aggregate(map_) for map_ in upper[self.upper.ncvariable][:, :, :, j, i]],
-                    #'shading_lower_border': [self.aggregate(map_) for map_ in lower[self.lower.ncvariable][:, :, :, j, i]],
+                    'mean': mean.tolist(),
+                    'shading_upper_border': (mean+std).tolist(), 
+                    'shading_lower_border': (mean-std).tolist(),                     
                 }
-            js[gcm].update(js[gcm]['runs'].pop('multi-model-median'))
+            median = js[gcm]['runs'].pop('multi-model-median')
+            median['median'] = median.pop('mean')
+            js[gcm].update(median)
+
         return js
-
-
 
     def data(self):
         if self._vstemp:
-            return self._data_temperature(self.cube, self.variable)
+            return self._data_temperature(self.cube, self.variable, self.cube_std)
         else:
-            return self._data_time(self.cube, self.variable)
+            return self._data_time(self.cube, self.variable, self.cube_std)
 
     
     def todict(self):
         js = {}
         js.update(self.header())
         js.update(self.variable.axes)
+        js['climate_model_list'] = [m for m in js['climate_model_list'] if m != 'multi-model-median']
+        js['impact_model_list'] = [m for m in js['impact_model_list'] if m != 'multi-model-median']
         js.update({
             "data": self.data(),
         })
@@ -258,9 +272,11 @@ def _mask_historical(dima):
     dima[dima.year > 2005, 'historical'] = np.nan
 
 
-def _time_to_timeslice(dima, years):
+def _timeslice_average(dima, years):
     '''average time slices'''
-    return da.stack([dima[y-9:y+10].mean(axis='year', skipna=True) for y in years], axis='year', keys=years)
+    mean = da.stack([dima[y-9:y+10].mean(axis='year', skipna=True) for y in years], axis='year', keys=years)
+    std = da.stack([dima[y-9:y+10].std(axis='year', skipna=True) for y in years], axis='year', keys=years)
+    return mean, std
 
 
 def _multimodelmedian(data):
@@ -279,15 +295,54 @@ def _multimodelmedian(data):
     return data2
 
 
+def _process_time_data(cube, years):
+    _fill_historical(cube)
+    mean, std = _timeslice_average(cube, years)
+    _mask_historical(mean)
+    _mask_historical(std)
+    return _multimodelmedian(mean), _multimodelmedian(std)
+
+
 def create_json(variable, area):
     '''laod create json file for an area'''
     cube = da.read_nc(variable.areanc(area.code), variable.ncvariable)
+
     if 'time' in variable.axis:
-        _fill_historical(cube)
-        cube = _time_to_timeslice(cube, variable.years)
-        _mask_historical(cube)
-        cube = _multimodelmedian(cube)
-    return JsonData(variable, area, cube)
+        cube, cube_std = _process_time_data(cube, variable.years)
+    else:
+        path = variable.areanc(area.code)
+        pathvar = variable.ncvariable.replace('_','-')
+        prefix = 'interannual-standard-deviation-of-'
+        prefixvar = prefix.replace('-','_')
+        cube_std = da.read_nc(path.replace(pathvar, prefix+pathvar), prefixvar+variable.ncvariable)
+
+    return JsonData(variable, area, cube, cube_std)
+
+
+def generate_variables(indicators, exposures, changes, axes):
+    return [Variable(exposure+'-'+indicator+'-'+change+'_ISIMIP-projections_'+axis)
+                for indicator in indicators for exposure in exposures for change in changes for axis in axes]
+
+
+def get_areas(geom=False, mask=False, mask_file=mask_file):
+    import shapely.geometry as shg
+    import fiona
+
+    with nc.Dataset(mask_file) as ds:
+        codes = sorted([v[2:] for v in ds.variables.keys() if v.startswith('m_')])
+
+        countries = list(fiona.open('TM_WORLD_BORDERS_SIMPL-0.3/TM_WORLD_BORDERS_SIMPL-0.3.shp'))
+        areas = [Area(c['properties']['ISO3'], c['properties']['NAME'], geom=shg.shape(c['geometry']) if geom else None, properties=c['properties']) 
+            for c in countries if c['properties']['ISO3'] in codes]
+
+    if mask:
+        with nc.Dataset(mask_file) as ds:
+            for area in areas:
+                area.mask = ds['m_'+area.code][:] == 1
+
+    return sorted(areas, key=lambda a: a.code)
+
+
 
     #TODO: read data from json file
 
@@ -389,66 +444,35 @@ def create_json(variable, area):
 
 
 
-def jsoncreator(v):
-    if v.axis == 'versus-timeslices':
-        return JsonFileTime(v)
-    else:
-        return JsonFileTemp(v)
+# def main():
+#     import argparse
+#     parser = argparse.ArgumentParser()
 
+#     areas = get_areas()
 
-def generate_variables(indicators, exposures, changes, axes):
-    return [Variable(exposure+'-'+indicator+'-'+change+'_ISIMIP-projections_'+axis)
-                for indicator in indicators for exposure in exposures for change in changes for axis in axes]
+#     from config import exposures, indicators, changes, axes
+#     parser.add_argument('--indicators', nargs='*', default=indicators, help='%(default)s')    
+#     parser.add_argument('--exposure', nargs='*', default=exposures, help='%(default)s')    
+#     parser.add_argument('--changes', nargs='*', default=changes, help='%(default)s')    
+#     parser.add_argument('--axes', nargs='*', default=axes, help='%(default)s')    
+#     parser.add_argument('--areas', nargs='*', default=[a.code for a in areas], help='%(default)s')    
+#     o = parser.parse_args()
 
+#     variables = generate_variables(o.indicators, o.exposures, o.changes, o.axes)
 
-def get_areas(geom=False, mask=False, mask_file=mask_file):
-    import shapely.geometry as shg
-    import fiona
+#     areas = [a for a in areas if a.code in o.areas]
 
-    with nc.Dataset(mask_file) as ds:
-        codes = sorted([v[2:] for v in ds.variables.keys() if v.startswith('m_')])
+#     with nc.Dataset(mask_file) as ds:
+#         for area in areas:
+#             area.mask = ds['m_'+area.code][:] == 1
 
-        countries = list(fiona.open('TM_WORLD_BORDERS_SIMPL-0.3/TM_WORLD_BORDERS_SIMPL-0.3.shp'))
-        areas = [Area(c['properties']['ISO3'], c['properties']['NAME'], geom=shg.shape(c['geometry']) if geom else None, properties=c['properties']) 
-            for c in countries if c['properties']['ISO3'] in codes]
-
-    if mask:
-        with nc.Dataset(mask_file) as ds:
-            for area in areas:
-                area.mask = ds['m_'+area.code][:] == 1
-
-    return sorted(areas, key=lambda a: a.code)
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-
-    areas = get_areas()
-
-    from config import exposures, indicators, changes, axes
-    parser.add_argument('--indicators', nargs='*', default=indicators, help='%(default)s')    
-    parser.add_argument('--exposure', nargs='*', default=exposures, help='%(default)s')    
-    parser.add_argument('--changes', nargs='*', default=changes, help='%(default)s')    
-    parser.add_argument('--axes', nargs='*', default=axes, help='%(default)s')    
-    parser.add_argument('--areas', nargs='*', default=[a.code for a in areas], help='%(default)s')    
-    o = parser.parse_args()
-
-    variables = generate_variables(o.indicators, o.exposures, o.changes, o.axes)
-
-    areas = [a for a in areas if a.code in o.areas]
-
-    with nc.Dataset(mask_file) as ds:
-        for area in areas:
-            area.mask = ds['m_'+area.code][:] == 1
-
-    for v in variables:
-        print(v)
-        gen = jsoncreator(v)
-        for area in areas:
-            js = gen.todict(area)
+#     for v in variables:
+#         print(v)
+#         gen = jsoncreator(v)
+#         for area in areas:
+#             js = gen.todict(area)
 
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
