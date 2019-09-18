@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import netCDF4 as nc
+import dimarray as da
 
 from isipedia.config import cube_data_stefan, cube_data_out, mask_file, totpopfile, gridareafile
 
@@ -11,6 +12,7 @@ class Variable:
         """
         self.name = name
         vars(self).update(self._parse_name())
+        self._init_axes()
 
     def _parse_name(self):
         variable, studytype, axis = self.name.split('_')
@@ -32,16 +34,18 @@ class Variable:
     def ncvariable(self):    
         params = vars(self).copy()
         return '{changeS}-in-{exposure}-{indicator}'.format(changeS=params.pop('change')[:-1], **params).replace('-','_')
-        
-    @property
-    def gridnc(self):
+
+    def areanc(self, area):
         params = vars(self).copy()
         axis = params.pop('axis')
         axis = 'versus-year' if axis in ['versus-timeslices', 'versus-years'] else axis
         return (cube_data_stefan +
-                '{variable}/future-projections/grid-level/{variable}_future-projections_grid-level_{axis}.nc'.format(
-                    variable=self.ncvariable.replace('_','-'), axis=axis, **params))
+                '{variable}/future-projections/{area}/{variable}_future-projections_{area}_{axis}.nc'.format(
+                    variable=self.ncvariable.replace('_','-'), axis=axis, area=area, **params))
 
+    @property
+    def gridnc(self):
+        return self.areanc('grid-level')
 
     def jsonfile(self, area):
         return os.path.join(cube_data_out, self.indicator, self.studytype, area, self.name+'_'+area+'.json')
@@ -52,13 +56,50 @@ class Variable:
 
     def gridcsv(self, point):
         return os.path.join(self.griddir, str(point)+'.csv')
-    
+
+
+    def _init_axes_time(self, ds):
+        self.climate_model_list = ds['climate_model'][:].tolist()
+        self.impact_model_list = ds['impact_model'][:].tolist()
+        self.climate_scenario_list = ds['ghg_concentration_scenario'][:].tolist()    
+        self.years = ds['year'][:].tolist()    
+
+        self.axes = {
+          "timeslices_list": [(y-9,y+10) for y in self.years],
+          "climate_scenario_list": self.climate_scenario_list,
+          "climate_model_list": self.climate_model_list,
+          "impact_model_list": self.impact_model_list,            
+        }
+
+
+    def _init_axes_temperature(self, ds):
+        self.climate_model_list = ds['climate_model'][:].tolist()
+        self.impact_model_list = ds['impact_model'][:].tolist()
+        self.temperature_list = ds['temperature_change'][:].tolist()            
+
+        self.axes = {
+              "temperature_list": self.temperature_list,
+              "climate_model_list": self.climate_model_list,
+              "impact_model_list": self.impact_model_list,            
+        }
+
+
+    def _init_axes(self, area=None):
+        with nc.Dataset(self.areanc(area or 'grid-level')) as ds:
+            if 'temperature' in self.axis:
+                self._init_axes_temperature(ds)
+            else:
+                self._init_axes_time(ds)
+
+
     def __repr__(self):
         return 'Variable("{}")'.format(self.name)
 
 
 
 class Point:
+    """One dot on the line plot = one map
+    """
     def __init__(self, scenario, climate_model, impact_model, slice):
         self.climate_model = climate_model.replace('multi-model-median','median')
         self.impact_model = impact_model.replace('multi-model-median','median')
@@ -74,12 +115,14 @@ class Point:
 
 
 class Area:
-    def __init__(self, code, name=None, properties=None, mask=None, geom=None):
+    """country or other area
+    """
+    def __init__(self, code, name=None, mask=None, geom=None, properties=None):
         self.code = code
         self.name = name
-        self.properties = properties
         self.mask = mask
         self.geom = geom
+        self.properties = properties
 
     def __str__(self):
         return '{} :: {}'.format(self.code, self.name)
@@ -88,165 +131,72 @@ class Area:
         return 'Area({}, {})'.format(self.code, self.name)
 
 
-class JsonFileCreator:
-
-    plot_label_x = ""
-    plot_unit_x = ""
-    plot_title = ""
+class JsonData:
     
-    def __init__(self, variable, gridareafile=gridareafile, totpopfile=totpopfile):
+    def __init__(self, variable, area, cube):
         self.variable = variable
-        self._init_axes()
-        #vars(self).update(self.axes) # temperature_list etc.
-
+        self.area = area
+        self.cube = cube
         self.name = variable.ncvariable.replace('_',' ')
+        self.metadata = {}
 
-    def opennc(self):
-        return nc.Dataset(self.variable.gridnc)
-    
-    def header(self, area):
-        return {
+        assert len(variable.climate_model_list) == cube.climate_model.size, 'climate_model mismatch'
+        assert len(variable.impact_model_list) == cube.impact_model.size, 'impact_model mismatch'
+        #assert len(variable.climate_scenario_list) == cube.ghg_concentration_scenario.size, 'climate_scenario mismatch'
+
+        self._vstemp = 'temperature' in self.variable.axis
+
+        if self._vstemp:
+            self.plot_type = "indicator_vs_temperature"
+            self.plot_label_x = "Global warming level"
+            self.plot_unit_x = "°C"    
+            self.plot_title =  self.name + ' vs. Global warming level'
+
+        else:
+
+            self.plot_type = "indicator_vs_timeslices"    
+            self.plot_label_x = "Time Slices"
+            self.plot_unit_x = ""
+            self.plot_title = self.name + ' vs. Time slices'
+            self.metadata.update({"n_timeslices": len(self.variable.years)})
+
+
+    def header(self):
+        hdr = self.metadata.copy()
+        hdr.update({
              'plot_type': self.plot_type,
               "indicator": self.variable.indicator,
               "variable": self.variable.ncvariable.replace('-',' '),
               "assessment_category": self.variable.studytype,
-              "area": area.code,
-              "region": area.name,
+              "area": self.area.code,
+              "region": self.area.name,
               #"esgf_search_url": "https://esg.pik-potsdam.de/esg-search/search/?offset=0&limit=10&type=Dataset&replica=false&latest=true&project=ISIMIP2b&sector=Water+Global&distrib=false&replica=false&facets=world_region%2Cvariable%2Ctime_frequency%2Clicence%2Cproduct%2Cexperiment%2Cproject%2Ccountry%2Csector%2Cimpact_model%2Cperiod%2Cbias_correction%2Cdataset_type%2Cmodel%2Cvariable_long_name%2Cco2_forcing%2Csocial_forcing%2Cirrigation_forcing%2Cvegetation%2Ccrop%2Cpft%2Cac_harm_forcing%2Cdiaz_forcing%2Cfishing_forcing%2Cmf_region%2Cocean_acidification_forcing%2Cwr_station%2Cwr_basin%2Cmelting_forcing%2Cpopulation_forcing%2Cearth_model_forcing%2Cadaptation_forcing%2Cforestry_stand",
               "plot_title": self.plot_title,
               "plot_label_x": self.plot_label_x,
               "plot_unit_x": self.plot_unit_x,
               "plot_label_y": self.name,
               "plot_unit_y": "% of land area" if self.variable.exposure.startswith('land-area') else '% of population',
-        }
-        
-    def data(self, ds, area):
-        return {}
-    
-    def todict(self, ds, area):
-        js = {}
-        js.update(self.header(area))
-        js.update(self.axes)
-        js.update({
-            "data": self.data(ds, area),
         })
-        return js    
-    
-
-class Aggregator:
-    def __init__(self, mask, weights):
-        self.mask = mask
-        self.weights = weights
-        self.total_per_cell = weights[mask]
-        self.total_per_area = np.sum(self.total_per_cell)
-
-    def __call__(self, array):
-        if hasattr(array, 'mask'):
-            array = array.filled(np.nan)  # TODO: check missing data issues more carefully        
-        res = np.sum(array[self.mask]*self.total_per_cell)/self.total_per_area
-        return res.tolist() if np.isfinite(res) else None
+        return hdr
 
 
-
-class LandWeight:
-    def __init__(self, gridareafile=gridareafile):
-        with nc.Dataset(gridareafile) as ds:
-            self.cell_weights0 = ds['cell_area'][:].squeeze()
-
-    def get_weight(self, t=None):
-        return self.cell_weights0
-
-
-class PopolationWeight:
-    def __init__(self, years=[], totpopfile=totpopfile):
-        # self.cell_weight = nc.Dataset('griddata/pop_tot_2005soc_0.5deg.nc4')['pop_tot'][:].squeeze()
-        # years = []
-        self.cell_weight = nc.Dataset(totpopfile)['pop_tot']
-        self.years = years
-        self.cell_weight_indices = []
-
-        for y in years:
-            if y <= 1861:
-                self.cell_weight_indices.append(0)
-            elif y >= 2005:
-                self.cell_weight_indices.append(144)
-            else:
-                self.cell_weight_indices.append(y-1861)         
-
-    def get_weight(selt, t=None):
-        if not self.cell_weight_indices:
-            return self.cell_weight[-1]
-
-        i = self.cell_weight_indices[t]
-        return self.cell_weight[i]
-
-        
-class JsonFileTime(JsonFileCreator):
-
-    plot_type = "indicator_vs_timeslices"    
-    plot_label_x = "Time Slices"
-    plot_unit_x = ""
-    
-    def __init__(self, variable):
-
-        super().__init__(variable)
-        self.plot_title =  self.name + ' vs. Time slices'
-
-        # weighting
-        if self.variable.exposure.startswith('land-area'):
-            self.weighting = LandWeight()
-        else:
-            self.weighting = PopolationWeight(self.years)
-
-    def _init_axes(self):
-        with self.opennc() as ds:
-            self.climate_model_list = ds['climate_model'][:].tolist()
-            self.impact_model_list = ds['impact_model'][:].tolist()
-            self.climate_scenario_list = ds['ghg_concentration_scenario'][:].tolist()    
-            self.years = ds['year'][:].tolist()    
-
-        self.axes = {
-          "n_timeslices": len(self.years),
-          "timeslices_list": [(y-9,y+10) for y in self.years],
-          "climate_scenario_list": self.climate_scenario_list,
-          "climate_model_list": self.climate_model_list,
-          "impact_model_list": self.impact_model_list,            
-        }
-
-    
-    def _crunch_data(self, ds, area):               
-        data = {}
-        for t, year in enumerate(self.years):
-            weight = self.weighting.get_weight(t)
-            aggregator = Aggregator(area.mask, weight)
-
-            for k, scenario in enumerate(self.climate_scenario_list):
-                for i, gcm in enumerate(self.climate_model_list):
-                    for j, impact in enumerate(self.impact_model_list):
-                        array = ds[self.variable.ncvariable][t, :, :, k, i, j]
-                        data[(year, scenario, gcm, impact)] = aggregator(array)
-
-        return data
-
-
-    def data(self, ds, area):               
-
-        data = self._crunch_data(ds, area)
+    @staticmethod
+    def _data_time(cube, variable):       
 
         js = {}            
-        for k, scenario in enumerate(self.climate_scenario_list):
+        for k, scenario in enumerate(variable.climate_scenario_list):
             js[scenario] = {}
 
-            for i, gcm0 in enumerate(self.climate_model_list):
+            for i, gcm0 in enumerate(variable.climate_model_list):
                 gcm = gcm0.replace('multi-model-median','overall')
                 js[scenario][gcm] = {
                     'runs': {},
                 }
                 
-                for j, impact in enumerate(self.impact_model_list):
+                for j, impact in enumerate(variable.impact_model_list):
                     #impact = impact.replace('multi-model-median','median')
                     js[scenario][gcm]['runs'][impact] = {
-                        'mean': [data[(year, scenario, gcm0, impact)] for year in self.years]
+                        'mean': [cube.loc[(year, scenario, gcm0, impact)].tolist() for year in variable.years]
                         #'shading_upper_border': [self.aggregate(map_) for map_ in upper[self.upper.ncvariable][:, :, :, j, i]],
                         #'shading_lower_border': [self.aggregate(map_) for map_ in lower[self.lower.ncvariable][:, :, :, j, i]],
                     }
@@ -254,54 +204,188 @@ class JsonFileTime(JsonFileCreator):
                         
         return js
 
-    
-class JsonFileTemp(JsonFileCreator):
 
-    plot_type = "indicator_vs_temperature"
-    plot_label_x = "Global warming level"
-    plot_unit_x = "°C"
-    
-    def __init__(self, variable):
-        super().__init__(variable)
-        self.plot_title =  self.name + ' vs. Global warming level'
-
-        # weighting
-        if self.variable.exposure.startswith('land-area'):
-            self.weighting = LandWeight()
-        else:
-            self.weighting = PopolationWeight()
-          
-    def _init_axes(self):
-
-        with self.opennc() as ds:
-            self.climate_model_list = ds['climate_model'][:].tolist()
-            self.impact_model_list = ds['impact_model'][:].tolist()
-            self.temperature_list = ds['temperature_change'][:].tolist()            
-
-        self.axes = {
-              "temperature_list": self.temperature_list,
-              "climate_model_list": self.climate_model_list,
-              "impact_model_list": self.impact_model_list,            
-        }
-    
-
-    def data(self, ds, area):
-        aggregator = Aggregator(area.mask, self.weighting.get_weight())
-
+    @staticmethod
+    def _data_temperature(cube, variable):
         js = {}
-        for i, gcm in enumerate(self.climate_model_list):
-            gcm = gcm.replace('multi-model-median','overall')
+        for i, gcm0 in enumerate(variable.climate_model_list):
+            gcm = gcm0.replace('multi-model-median','overall')
             js[gcm] = {
                 'runs': {},
             }
-            for j, impact in enumerate(self.impact_model_list):
+            for j, impact in enumerate(variable.impact_model_list):
                 js[gcm]['runs'][impact] = {
-                    'median': [aggregator(map_) for map_ in ds[self.variable.ncvariable][:, :, :, i, j]]
+                    'median': [cube.loc[(temp, gcm0, impact)].tolist() for temp in variable.temperature_list]
                     #'shading_upper_border': [self.aggregate(map_) for map_ in upper[self.upper.ncvariable][:, :, :, j, i]],
                     #'shading_lower_border': [self.aggregate(map_) for map_ in lower[self.lower.ncvariable][:, :, :, j, i]],
                 }
             js[gcm].update(js[gcm]['runs'].pop('multi-model-median'))
         return js
+
+
+
+    def data(self):
+        if self._vstemp:
+            return self._data_temperature(self.cube, self.variable)
+        else:
+            return self._data_time(self.cube, self.variable)
+
+    
+    def todict(self):
+        js = {}
+        js.update(self.header())
+        js.update(self.variable.axes)
+        js.update({
+            "data": self.data(),
+        })
+        return js    
+  
+_futures = ['rcp26', 'rcp60']
+
+def _fill_historical(dima):
+    m = dima.year <= 2005 
+    for s in dima.ghg_concentration_scenario:
+        if s in ['historical', 'piControl']:
+            continue
+        dima[m, s] = dima[m, 'historical']
+
+def _mask_historical(dima):
+    m = dima.year < 1990   # leave one historical point 
+    for s in dima.ghg_concentration_scenario:
+        if s in ['historical', 'piControl']:
+            continue
+        dima[m, s] = np.nan
+    dima[dima.year > 2005, 'historical'] = np.nan
+
+
+def _time_to_timeslice(dima, years):
+    '''average time slices'''
+    return da.stack([dima[y-9:y+10].mean(axis='year', skipna=True) for y in years], axis='year', keys=years)
+
+
+def _multimodelmedian(data):
+    '''median of climate impact models'''
+    climate_median = data.median(axis='climate_model', skipna=True)
+    impact_median = data.median(axis='impact_model', skipna=True)
+    overall = data.median(axis=('impact_model', 'climate_model'), skipna=True)
+
+    data2 = da.DimArray(axes=[ax.values for ax in data.axes[:-2]]+[
+        ['multi-model-median']+data.climate_model.tolist(), 
+        ['multi-model-median']+data.impact_model.tolist()], dims=data.dims)
+    data2.values[..., 1:, 1:] = data.values
+    data2.values[..., 0, 0] = overall.values
+    data2.values[..., 1:, 0] = impact_median.values
+    data2.values[..., 0, 1:] = climate_median.values
+    return data2
+
+
+def create_json(variable, area):
+    '''laod create json file for an area'''
+    cube = da.read_nc(variable.areanc(area.code), variable.ncvariable)
+    if 'time' in variable.axis:
+        _fill_historical(cube)
+        cube = _time_to_timeslice(cube, variable.years)
+        _mask_historical(cube)
+        cube = _multimodelmedian(cube)
+    return JsonData(variable, area, cube)
+
+    #TODO: read data from json file
+
+    # def load_data_from_ncline(self, area):
+    #     data = {}
+    #     for t, year in enumerate(self.years):
+    #         weight = self.weighting.get_weight(t)
+    #         aggregator = Aggregator(area.mask, weight)
+
+    #         for k, scenario in enumerate(self.climate_scenario_list):
+    #             for i, gcm in enumerate(self.climate_model_list):
+    #                 for j, impact in enumerate(self.impact_model_list):
+    #                     array = ds[self.variable.ncvariable][t, :, :, k, i, j]
+    #                     data[(year, scenario, gcm, impact)] = aggregator(array)
+
+    #     return data      
+# class Aggregator:
+#     def __init__(self, mask, weights):
+#         self.mask = mask
+#         self.weights = weights
+#         self.total_per_cell = weights[mask]
+#         self.total_per_area = np.sum(self.total_per_cell)
+
+#     def __call__(self, array):
+#         if hasattr(array, 'mask'):
+#             array = array.filled(np.nan)  # TODO: check missing data issues more carefully        
+#         res = np.sum(array[self.mask]*self.total_per_cell)/self.total_per_area
+#         return res.tolist() if np.isfinite(res) else None
+
+
+
+# class LandWeight:
+#     def __init__(self, gridareafile=gridareafile):
+#         with nc.Dataset(gridareafile) as ds:
+#             self.cell_weights0 = ds['cell_area'][:].squeeze()
+
+#     def get_weight(self, t=None):
+#         return self.cell_weights0
+
+#     def aggregate(self, variable):
+
+
+
+# class PopolationWeight:
+#     def __init__(self, years=[], totpopfile=totpopfile):
+#         # self.cell_weight = nc.Dataset('griddata/pop_tot_2005soc_0.5deg.nc4')['pop_tot'][:].squeeze()
+#         # years = []
+#         self.cell_weight = nc.Dataset(totpopfile)['pop_tot']
+#         self.years = years
+#         self.cell_weight_indices = []
+
+#         for y in years:
+#             if y <= 1861:
+#                 self.cell_weight_indices.append(0)
+#             elif y >= 2005:
+#                 self.cell_weight_indices.append(144)
+#             else:
+#                 self.cell_weight_indices.append(y-1861)         
+
+#     def get_weight(selt, t=None):
+#         if not self.cell_weight_indices:
+#             return self.cell_weight[-1]
+
+#         i = self.cell_weight_indices[t]
+#         return self.cell_weight[i]
+
+
+# def get_weighting(variable):
+#     if variable.axes
+#     if variable.exposure.startswith('land-area'):
+#         return LandWeight()
+#     else:
+#         return PopolationWeight()
+
+
+
+#     def get_weighting(self):
+#         # weighting
+#         if self.variable.exposure.startswith('land-area'):
+#             weighting = LandWeight()
+#         else:
+#             weighting = PopolationWeight(self.years)
+#         return weighting
+
+
+    # def crunch_data_from_grid(self, ds, area):               
+    #     data = {}
+    #     for t, year in enumerate(self.years):
+    #         weight = self.weighting.get_weight(t)
+    #         aggregator = Aggregator(area.mask, weight)
+
+    #         for k, scenario in enumerate(self.climate_scenario_list):
+    #             for i, gcm in enumerate(self.climate_model_list):
+    #                 for j, impact in enumerate(self.impact_model_list):
+    #                     array = ds[self.variable.ncvariable][t, :, :, k, i, j]
+    #                     data[(year, scenario, gcm, impact)] = aggregator(array)
+
+    #     return data
 
 
 
