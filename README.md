@@ -1,16 +1,16 @@
 # Country maps
 
 This is work-in-progress code. Contact me before use.
-![World map](dummy/world.png?raw=true "World map")
+<img src=map.svg>
 
 
 Country masks
 -------------
 See [issue #1](https://github.com/ISI-MIP/countrymaps/issues/1) for a discussion about country masks.  
 
-![AFG](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/country_data/AFG/country.svg)
-![FRA](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/country_data/FRA/country.svg)
-![SDN](https://media.githubusercontent.com/media/ISI-MIP/countrymaps/master/country_data/SDN/country.svg)
+<img src=country_data/AFG/country.svg>
+<img src=country_data/FRA/country.svg>
+<img src=country_data/SDN/country.svg>
 
 
 Other aims
